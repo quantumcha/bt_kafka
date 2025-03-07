@@ -1,1 +1,58 @@
+services:
+  bt_kafka:
+    image: apache/kafka:latest
+    hostname: bt_kafka
+    container_name: bt_kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://bt_kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@bt_kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://bt_kafka:29092,CONTROLLER://bt_kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - ./kafka-logs:/tmp/kraft-combined-logs
+      
+    # workaround 'til k8s/minikube will be in use
+    # topics creation
+  init-bt_kafka:
+    image: apache/kafka:latest
+    depends_on:
+        - bt_kafka
+    entrypoint: [ 'sh', '-c' ]
+    command: |
+      "
+      while ! nc -z bt_kafka 29092; do
+        echo 'Waiting for Kafka to be ready...'
+        sleep 5
+      done
 
+      echo -e 'Creating Kafka topics'
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server bt_kafka:29092 --create --if-not-exists --topic categories --replication-factor 1 --partitions 1
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server bt_kafka:29092 --create --if-not-exists --topic popular_books --replication-factor 1 --partitions 1
+
+      echo -e 'Successfully created the following topics:'
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server bt_kafka:29092 --list
+      "
+      
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    container_name: kafdrop
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: bt_kafka:29092
+      JVM_OPTS: "-Xms32M -Xmx64M"
+    depends_on:
+      - init-bt_kafka
