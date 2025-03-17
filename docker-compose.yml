@@ -39,7 +39,7 @@ services:
       done
 
       echo -e 'Creating Kafka topics'
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server bt_kafka:29092 --create --if-not-exists --topic categories --replication-factor 1 --partitions 1
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server bt_kafka:29092 --create --if-not-exists --topic category --replication-factor 1 --partitions 1
       /opt/kafka/bin/kafka-topics.sh --bootstrap-server bt_kafka:29092 --create --if-not-exists --topic popular_books --replication-factor 1 --partitions 1
 
       echo -e 'Successfully created the following topics:'
